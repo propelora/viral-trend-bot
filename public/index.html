@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Viral Trend Bot</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #07111f;
+      color: white;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 25px 7%;
+      border-bottom: 1px solid #1b2b40;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .logo span {
+      color: #38a9ff;
+    }
+
+    .status {
+      color: #55e68a;
+      font-size: 14px;
+    }
+
+    main {
+      width: 86%;
+      max-width: 1200px;
+      margin: 50px auto;
+    }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .hero h1 {
+      font-size: 42px;
+      margin-bottom: 12px;
+    }
+
+    .hero p {
+      color: #9fb0c5;
+      font-size: 17px;
+    }
+
+    button {
+      margin-top: 25px;
+      padding: 14px 25px;
+      border: none;
+      border-radius: 8px;
+      background: #1688e8;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #38a9ff;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    #loading {
+      display: none;
+      text-align: center;
+      color: #9fb0c5;
+      margin: 30px 0;
+    }
+
+    .trend-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .trend-card {
+      background: #0d1a2a;
+      border: 1px solid #1b2b40;
+      border-radius: 14px;
+      padding: 25px;
+    }
+
+    .trend-number {
+      color: #38a9ff;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    .trend-card h2 {
+      font-size: 22px;
+      margin-bottom: 15px;
+    }
+
+    .score {
+      display: inline-block;
+      background: #172b40;
+      color: #55e68a;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+
+    .section {
+      margin-top: 18px;
+    }
+
+    .section-title {
+      color: #38a9ff;
+      font-size: 13px;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .section p {
+      color: #c5d0dd;
+      line-height: 1.5;
+    }
+
+    .script {
+      background: #07111f;
+      border-radius: 8px;
+      padding: 12px;
+      color: #dce6f2;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .hashtags {
+      color: #7fc7ff;
+    }
+
+    .empty {
+      text-align: center;
+      color: #9fb0c5;
+      padding: 50px;
+    }
+
+    @media (max-width: 600px) {
+      .hero h1 {
+        font-size: 32px;
+      }
+
+      main {
+        width: 92%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">
+    Viral<span>Trend</span>Bot
+  </div>
+
+  <div class="status">
+    ● System Ready
+  </div>
+</header>
+
+<main>
+
+  <section class="hero">
+    <h1>Find What's Going Viral</h1>
+
+    <p>
+      AI-powered trend research for YouTube Shorts.
+    </p>
+
+    <button id="generateButton" onclick="generateTrends()">
+      🔎 Find Viral Trends
+    </button>
+  </section>
+
+  <div id="loading">
+    🧠 AI is analyzing trend opportunities...
+  </div>
+
+  <div id="results" class="trend-grid">
+
+    <div class="empty">
+      Click "Find Viral Trends" to generate your first report.
+    </div>
+
+  </div>
+
+</main>
+
+<script>
+
+async function generateTrends() {
+
+  const button = document.getElementById("generateButton");
+  const loading = document.getElementById("loading");
+  const results = document.getElementById("results");
+
+  button.disabled = true;
+  loading.style.display = "block";
+
+  results.innerHTML = "";
+
+  try {
+
+    const response = await fetch("/api/trends");
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || "Something went wrong.");
+    }
+
+    if (!data.trends || data.trends.length === 0) {
+      results.innerHTML = `
+        <div class="empty">
+          No trend ideas were generated.
+        </div>
+      `;
+
+      return;
+    }
+
+    data.trends.forEach((trend, index) => {
+
+      const card = document.createElement("div");
+
+      card.className = "trend-card";
+
+      card.innerHTML = `
+
+        <div class="trend-number">
+          TREND #${index + 1}
+        </div>
+
+        <h2>${escapeHtml(trend.topic)}</h2>
+
+        <div class="score">
+          Viral Score: ${trend.viralScore}/100
+        </div>
+
+        <div class="section">
+
+          <div class="section-title">
+            Audience
+          </div>
+
+          <p>
+            ${escapeHtml(trend.audience)}
+          </p>
+
+        </div>
+
+        <div class="section">
+
+          <div class="section-title">
+            Why People Care
+          </div>
+
+          <p>
+            ${escapeHtml(trend.whyTrending)}
+          </p>
+
+        </div>
+
+        <div class="section">
+
+          <div class="section-title">
+            Short Idea
+          </div>
+
+          <p>
+            ${escapeHtml(trend.shortIdea)}
+          </p>
+
+        </div>
+
+        <div class="section">
+
+          <div class="section-title">
+            Hook
+          </div>
+
+          <p>
+            ${escapeHtml(trend.hook)}
+          </p>
+
+        </div>
+
+        <div class="section">
+
+          <div class="section-title">
+            Script
+          </div>
+
+          <div class="script">
+            ${escapeHtml(trend.script)}
+          </div>
+
+        </div>
+
+        <div class="section">
+
+          <div class="section-title">
+            Title
+          </div>
+
+          <p>
+            ${escapeHtml(trend.title)}
+          </p>
+
+        </div>
+
+        <div class="section">
+
+          <div class="section-title">
+            Hashtags
+          </div>
+
+          <p class="hashtags">
+            ${trend.hashtags
+              .map(tag => escapeHtml(tag))
+              .join(" ")}
+          </p>
+
+        </div>
+
+      `;
+
+      results.appendChild(card);
+
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    results.innerHTML = `
+      <div class="empty">
+        <h2>⚠️ Something went wrong</h2>
+        <p style="margin-top:10px;">
+          ${escapeHtml(error.message)}
+        </p>
+      </div>
+    `;
+
+  } finally {
+
+    button.disabled = false;
+    loading.style.display = "none";
+
+  }
+
+}
+
+
+function escapeHtml(value) {
+
+  if (!value) return "";
+
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+}
+
+</script>
+
+</body>
+</html>
