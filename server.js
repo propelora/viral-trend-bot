@@ -1,5 +1,4 @@
 const express = require("express");
-const OpenAI = require("openai");
 require("dotenv").config();
 
 const app = express();
@@ -8,16 +7,10 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static("public"));
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // --------------------------------------------------
-// DEMO TREND SOURCES
-// --------------------------------------------------
-// Version 1 uses a small set of live-ish trend searches.
-// We'll replace/expand these with dedicated trend APIs
-// after the basic system is working.
+// TREND CATEGORIES
 // --------------------------------------------------
 
 const trendTopics = [
@@ -33,8 +26,12 @@ const trendTopics = [
   "internet culture"
 ];
 
-// Generate trend ideas with AI
+// --------------------------------------------------
+// GEMINI AI
+// --------------------------------------------------
+
 async function analyzeTrends() {
+
   const prompt = `
 You are a viral-content trend analyst.
 
@@ -66,7 +63,9 @@ IMPORTANT:
 - Focus on ideas suitable for short-form video.
 - Avoid dangerous, illegal, hateful, or sexual content.
 
-Return ONLY valid JSON in this format:
+Return ONLY valid JSON.
+
+Use exactly this format:
 
 {
   "trends": [
@@ -85,37 +84,75 @@ Return ONLY valid JSON in this format:
 }
 `;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: 0.8,
-    messages: [
-      {
-        role: "system",
-        content: "You are an expert viral short-form content analyst."
-      },
-      {
-        role: "user",
-        content: prompt
+  const url =
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
+    GEMINI_API_KEY;
+
+  const response = await fetch(url, {
+    method: "POST",
+
+    headers: {
+      "Content-Type": "application/json"
+    },
+
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            {
+              text: prompt
+            }
+          ]
+        }
+      ],
+
+      generationConfig: {
+        temperature: 0.8,
+        responseMimeType: "application/json"
       }
-    ]
+    })
   });
 
-  const text = response.choices[0].message.content;
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error("Gemini API error:", data);
+
+    throw new Error(
+      data.error?.message ||
+      "Gemini API request failed."
+    );
+  }
+
+  const text =
+    data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!text) {
+    throw new Error("Gemini returned an empty response.");
+  }
 
   try {
-    return JSON.parse(text);
-  } catch (error) {
-    console.error("AI returned invalid JSON:", text);
 
-    return {
-      trends: []
-    };
+    return JSON.parse(text);
+
+  } catch (error) {
+
+    console.error("Invalid JSON from Gemini:", text);
+
+    throw new Error(
+      "Gemini returned data that could not be parsed."
+    );
   }
 }
 
-// API endpoint
+// --------------------------------------------------
+// TREND API
+// --------------------------------------------------
+
 app.get("/api/trends", async (req, res) => {
+
   try {
+
     const results = await analyzeTrends();
 
     res.json({
@@ -125,25 +162,41 @@ app.get("/api/trends", async (req, res) => {
     });
 
   } catch (error) {
+
     console.error(error);
 
     res.status(500).json({
       success: false,
-      error: "Unable to generate trends.",
-      details: error.message
+      error: error.message
     });
+
   }
+
 });
 
-// Health check
+// --------------------------------------------------
+// HEALTH CHECK
+// --------------------------------------------------
+
 app.get("/api/health", (req, res) => {
+
   res.json({
     status: "online",
     bot: "Viral Trend Bot",
-    version: "1.0"
+    version: "1.0",
+    ai: "Gemini"
   });
+
 });
 
+// --------------------------------------------------
+// START SERVER
+// --------------------------------------------------
+
 app.listen(PORT, () => {
-  console.log(`Viral Trend Bot running on port ${PORT}`);
+
+  console.log(
+    `Viral Trend Bot running on port ${PORT}`
+  );
+
 });
